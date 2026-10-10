@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centro de Control La Calera</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand">
+    <img src="assets/logo.png" alt="La Calera" class="logo">
+    <div>
+      <h1>CENTRO DE CONTROL LA CALERA</h1>
+      <div class="clock" id="clock" aria-live="off">—</div>
+    </div>
+  </div>
+  <div class="search">
+    <input id="q" type="search" autocomplete="off" placeholder="Buscar sede, ciudad, dirección, comisaría, grifo, cochera…" aria-label="Buscador">
+    <button id="qGo" title="Buscar lugar en el mapa (OpenStreetMap)">Buscar</button>
+    <div id="sugg" class="sugg" hidden></div>
+  </div>
+</header>
+
+<nav id="toolbar" aria-label="Acciones">
+  <button id="btnPanel" class="tb only-mobile">☰ Panel</button>
+  <button id="btnRuta" class="tb primary">Ver ruta</button>
+  <button id="btnEmerg" class="tb danger">Puntos de emergencia</button>
+  <button id="btnInteres" class="tb">Puntos de interés</button>
+  <button id="btnPdf" class="tb">Exportar PDF</button>
+  <button id="btnLimpiar" class="tb ghost">Limpiar selección</button>
+  <span id="status" class="status" role="status"></span>
+</nav>
+
+<div id="app">
+  <aside id="sidebar">
+    <button id="sideClose" class="side-close" onclick="document.getElementById('sidebar').classList.remove('open')">✕ Cerrar panel y ver mapa</button>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="sedes" role="tab">Sedes</button>
+      <button class="tab" data-tab="ruta" role="tab">Ruta</button>
+      <button class="tab" data-tab="emerg" role="tab">Emergencias</button>
+      <button class="tab" data-tab="interes" role="tab">Interés</button>
+    </div>
+
+    <!-- SEDES -->
+    <section class="pane active" id="pane-sedes">
+      <div class="field"><label for="fCiudad">Filtrar por ciudad</label>
+        <select id="fCiudad"><option value="">Todas las ciudades</option></select></div>
+      <ul id="listaSedes" class="list"></ul>
+    </section>
+
+    <!-- RUTA -->
+    <section class="pane" id="pane-ruta">
+      <div class="field"><label for="selOrigen">Origen</label><select id="selOrigen"></select></div>
+      <div class="swap"><button id="btnSwap" title="Intercambiar origen y destino">⇅ Intercambiar</button></div>
+      <div class="field"><label for="selDestino">Destino</label><select id="selDestino"></select></div>
+      <label class="check"><input type="checkbox" id="chkOperativa" checked> Usar corredor operativo del Excel (si existe)</label>
+      <button id="btnCalcular" class="wide primary">Calcular ruta</button>
+      <div id="rutaResultado"></div>
+    </section>
+
+    <!-- EMERGENCIAS -->
+    <section class="pane" id="pane-emerg">
+      <div class="field"><label for="emCiudad">Ciudad / sede de referencia</label><select id="emCiudad"></select></div>
+      <div class="field"><label>Zona de búsqueda</label>
+        <div class="seg" id="emModo">
+          <button data-m="radio" class="on">Alrededor de la sede</button>
+          <button data-m="ruta">A lo largo de la ruta</button>
+        </div></div>
+      <div class="field"><label for="emRadio">Distancia máxima: <b id="emRadioTxt">10 km</b></label>
+        <input type="range" id="emRadio" min="1" max="40" value="10"></div>
+      <div id="emCats" class="chips"></div>
+      <button id="emBuscar" class="wide danger">Buscar servicios de emergencia</button>
+      <h3>Teléfonos del Centro de Control</h3>
+      <div id="emDirectorio"></div>
+      <h3>Servicios en el mapa (OpenStreetMap)</h3>
+      <div id="emResultados" class="results"></div>
+    </section>
+
+    <!-- INTERÉS -->
+    <section class="pane" id="pane-interes">
+      <div class="field"><label for="inCiudad">Ciudad / sede de referencia</label><select id="inCiudad"></select></div>
+      <div class="field"><label>Zona de búsqueda</label>
+        <div class="seg" id="inModo">
+          <button data-m="radio" class="on">Alrededor de la sede</button>
+          <button data-m="ruta">A lo largo de la ruta</button>
+        </div></div>
+      <div class="field"><label for="inRadio">Distancia máxima: <b id="inRadioTxt">10 km</b></label>
+        <input type="range" id="inRadio" min="1" max="40" value="10"></div>
+      <div id="inCats" class="chips"></div>
+      <button id="inBuscar" class="wide primary">Buscar puntos de interés</button>
+      <div id="inResultados" class="results"></div>
+    </section>
+
+    <footer class="side-foot">
+      Datos cartográficos © colaboradores de <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL). Rutas: OSRM.
+    </footer>
+  </aside>
+
+  <main id="stage">
+    <div id="map"></div>
+    <div id="mapMsg" class="mapmsg" hidden></div>
+    <aside id="info" hidden>
+      <button id="infoClose" class="x" aria-label="Cerrar">×</button>
+      <div id="infoBody"></div>
+    </aside>
+  </main>
+</div>
+
+<!-- Modal de exportación -->
+<div id="pdfModal" class="modal" hidden>
+  <div class="modal-box" role="dialog" aria-labelledby="pdfTitle">
+    <h2 id="pdfTitle">Exportar PDF (A4)</h2>
+    <div class="seg" id="pdfAlcance">
+      <button data-a="todo" class="on">Reporte completo</button>
+      <button data-a="sel">Solo lo seleccionado (<span id="selCount">0</span>)</button>
+    </div>
+    <p class="hint">Marque con ☑ los registros de las listas que desea incluir y elija "Solo lo seleccionado".</p>
+    <label class="check"><input type="checkbox" id="pdfMapa" checked> Mapa con marcadores y ruta</label>
+    <label class="check"><input type="checkbox" id="pdfRuta" checked> Ruta (origen, destino, distancia, tiempo, carreteras)</label>
+    <label class="check"><input type="checkbox" id="pdfDir" checked> Directorio de emergencias (teléfonos del Centro de Control)</label>
+    <label class="check"><input type="checkbox" id="pdfServ" checked> Servicios y puntos de interés consultados en el mapa</label>
+    <div class="modal-actions">
+      <button id="pdfCancel" class="ghost">Cancelar</button>
+      <button id="pdfGenerar" class="primary">Generar PDF</button>
+    </div>
+    <div id="pdfProgreso" class="hint"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/data-sedes.js"></script>
+<script src="js/data-emergencias.js"></script>
+<script src="js/data-rutas.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pdf.js"></script>
+</body>
+</html>
